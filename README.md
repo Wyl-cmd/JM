@@ -17,8 +17,8 @@
 ### 方法2：从源码运行
 1. 克隆本仓库
 ```bash
-https://github.com/yourusername/JMbenzi.git
-cd JMbenzi
+git clone https://github.com/Wyl-cmd/JM_Downloader.git
+cd JM_Downloader
 ```
 2. 安装依赖
 ```bash
