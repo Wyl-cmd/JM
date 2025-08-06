@@ -1,3 +1,4 @@
+import sys
 import jmcomic, os, time, yaml
 from PIL import Image
 import customtkinter as ctk
@@ -15,6 +16,7 @@ def all2pdf(input_folder, pdfpath, pdfname):
     zimulu = []  # 子目录（里面为image）
     image = []  # 子目录图集
     sources = []  # pdf格式的图
+    supported_formats = [".jpg", ".jpeg", ".png", ".webp"]  # 支持的图片格式
 
     with os.scandir(path) as entries:
         for entry in entries:
@@ -23,7 +25,7 @@ def all2pdf(input_folder, pdfpath, pdfname):
                     zimulu.append(int(entry.name))
                 except ValueError:
                     print(f"跳过非整数的子目录名: {entry.name}")
-            if entry.is_file() and entry.name.endswith(".jpg"):
+            if entry.is_file() and any(entry.name.lower().endswith(ext) for ext in supported_formats):
                 image.append(os.path.join(path, entry.name))
 
     # 对数字进行排序
@@ -35,24 +37,31 @@ def all2pdf(input_folder, pdfpath, pdfname):
             for entry in entries:
                 if entry.is_dir():
                     print("这一级不应该有自录")
-                if entry.is_file() and entry.name.endswith(".jpg"):
+                if entry.is_file() and any(entry.name.lower().endswith(ext) for ext in supported_formats):
                     image.append(os.path.join(sub_path, entry.name))
 
     if len(image) == 0:
-        print("没有找到.jpg文件，不生成PDF")
-        return "没有找到.jpg文件，不生成PDF"
+        print(f"没有找到{supported_formats}格式文件，不生成PDF")
+        return f"没有找到{supported_formats}格式文件，不生成PDF"
 
-    if image[0].endswith(".jpg"):
+    # 检查第一张图片是否为支持的格式
+    first_image_supported = any(image[0].lower().endswith(ext) for ext in supported_formats)
+    if first_image_supported:
         output = Image.open(image[0])
         image.pop(0)
     else:
-        print("没有找到.jpg文件，不生成PDF")
-        return "没有找到.jpg文件，不生成PDF"
+        print(f"没有找到{supported_formats}格式文件，不生成PDF")
+        return f"没有找到{supported_formats}格式文件，不生成PDF"
 
     for file in image:
-        if file.endswith(".jpg"):
+        if any(file.lower().endswith(ext) for ext in supported_formats):
             img_file = Image.open(file)
-            if img_file.mode == "RGB":
+            if img_file.mode == "RGBA":
+                # 处理透明背景，将其转换为白色
+                background = Image.new("RGB", img_file.size, (255, 255, 255))
+                background.paste(img_file, mask=img_file.split()[3])  # 3 is the alpha channel
+                img_file = background
+            elif img_file.mode != "RGB":
                 img_file = img_file.convert("RGB")
             sources.append(img_file)
 
@@ -69,17 +78,62 @@ def download_and_convert(entry_widget, label_widget):
     manga_id = entry_widget.get()
     manga_ids = [manga_id]
 
+    # 使用程序所在目录作为下载目录
+    if getattr(sys, 'frozen', False):
+        # 打包后的环境
+        base_path = os.path.dirname(sys.executable)
+    else:
+        # 开发环境
+        base_path = os.getcwd()
+    # 记录详细调试信息到日志文件
+    log_path = os.path.join(base_path, 'download_log.txt')
+    with open(log_path, 'a', encoding='utf-8') as f:
+        f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - 打包状态: {getattr(sys, 'frozen', False)}\n")
+        f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - 程序路径: {sys.executable}\n")
+        f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - 当前下载路径: {base_path}\n")
+    # 同时输出到控制台和日志
+    log_message = f"打包状态: {getattr(sys, 'frozen', False)}"
+    print(log_message)
+    with open(log_path, 'a', encoding='utf-8') as f:
+        f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {log_message}\n")
+
+    log_message = f"程序路径: {sys.executable}"
+    print(log_message)
+    with open(log_path, 'a', encoding='utf-8') as f:
+        f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {log_message}\n")
+
+    log_message = f"当前下载路径: {base_path}"
+    print(log_message)
+    with open(log_path, 'a', encoding='utf-8') as f:
+        f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {log_message}\n")
+
     for manga_id in manga_ids:  # 使用manga_id避免与内置id冲突
         try:
-            jmcomic.download_album(manga_id, load_config)
+            # 不使用config，使用默认配置
+            # 添加调试信息
+            log_message = f"准备下载漫画ID {manga_id} 到目录: {base_path}"
+            print(log_message)
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {log_message}\n")
+            # 指定下载目录
+            # 使用正确的参数名，假设为download_dir
+              # 创建默认下载选项并设置下载目录
+            option = jmcomic.JmOption.default()
+            # 复制选项并修改下载目录
+            new_option = option.copy_option()
+            new_option.dir_rule.base_dir = base_path
+            jmcomic.download_album(manga_id, option=new_option)
+            log_message = f"漫画ID {manga_id} 下载完成，保存到: {base_path}"
+            print(log_message)
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {log_message}\n")
         except Exception as e:
-            print(f"下载漫画ID {manga_id} 时出错: {e}")
+            log_message = f"下载漫画ID {manga_id} 时出错: {e}"
+            print(log_message)
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {log_message}\n")
             label_widget.configure(text=f"下载漫画ID {manga_id} 时出错: {e}")
             continue
-
-    with open(config, "r", encoding="utf8") as f:
-        data = yaml.load(f, Loader=yaml.FullLoader)
-        base_path = os.path.join(os.path.dirname(__file__), data["dir_rule"]["base_dir"])  # 修改为相对此程序的目录
 
     # 检查目录是否存在，如果不存在则创建
     if not os.path.exists(base_path):
@@ -109,10 +163,14 @@ def open_pdf(filename):
         os.startfile(filename)
     # 删除了不支持的部分
 
-def delete_pdf_and_folder(pdf_name):
-    with open(config, "r", encoding="utf8") as f:
-        data = yaml.load(f, Loader=yaml.FullLoader)
-        base_path = os.path.join(os.path.dirname(__file__), data["dir_rule"]["base_dir"])  # 修改为相对此程序的目录
+def delete_pdf_and_folder(pdf_name, status_label):
+    # 使用与下载功能相同的方法获取基础路径
+    if getattr(sys, 'frozen', False):
+        # 打包后的环境
+        base_path = os.path.dirname(sys.executable)
+    else:
+        # 开发环境
+        base_path = os.getcwd()
 
     if pdf_name:  # 检查是否选中了文件
         pdf_file_path = os.path.join(base_path, pdf_name + ".pdf")
@@ -121,29 +179,30 @@ def delete_pdf_and_folder(pdf_name):
         if os.path.exists(pdf_file_path):
             os.remove(pdf_file_path)
             print(f"已删除PDF文件: {pdf_file_path}")
+            status_label.configure(text=f"已删除PDF文件: {pdf_file_path}")
         if os.path.exists(folder_path):
             shutil.rmtree(folder_path)
             print(f"已删除文件夹: {folder_path}")
-    else:  # 默认删除所有PDF
-        for file in os.listdir(base_path):
-            file_path = os.path.join(base_path, file)
-            if file.endswith(".pdf"):
-                os.remove(file_path)
-                print(f"已删除PDF文件: {file_path}")
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-                print(f"已删除文件夹: {file_path}")
+            status_label.configure(text=f"已删除文件夹: {folder_path}")
+    else:  # 没有选中文件
+        print("没有选中的PDF文件")
+        status_label.configure(text="没有选中的PDF文件")
 
     refresh_pdf_list()
 
 def refresh_pdf_list():
     global pdf_list  # 确保使用的是全局变量
-    if pdf_list is None:
+    global manage_window  # 确保能访问到窗口
+    if pdf_list is None and manage_window is not None:
         pdf_list = tk.Listbox(manage_window, selectmode=tk.SINGLE)
     pdf_list.delete(0, tk.END)
-    with open(config, "r", encoding="utf8") as f:
-        data = yaml.load(f, Loader=yaml.FullLoader)
-        base_path = os.path.join(os.path.dirname(__file__), data["dir_rule"]["base_dir"])  # 修改为相对此程序的目录
+    # 使用与下载功能相同的方法获取基础路径
+    if getattr(sys, 'frozen', False):
+        # 打包后的环境
+        base_path = os.path.dirname(sys.executable)
+    else:
+        # 开发环境
+        base_path = os.getcwd()
 
     with os.scandir(base_path) as entries:
         for entry in entries:
@@ -162,14 +221,18 @@ def manage_pdfs():
             open_pdf(pdf_file_path)
 
     global pdf_list
-    with open(config, "r", encoding="utf8") as f:
-        data = yaml.load(f, Loader=yaml.FullLoader)
-        base_path = os.path.join(os.path.dirname(__file__), data["dir_rule"]["base_dir"])  # 修改为相对此程序的目录
+    # 使用与下载功能相同的方法获取基础路径
+    if getattr(sys, 'frozen', False):
+        # 打包后的环境
+        base_path = os.path.dirname(sys.executable)
+    else:
+        # 开发环境
+        base_path = os.getcwd()
 
     global manage_window
     manage_window = ctk.CTkToplevel(root)
     manage_window.title("管理PDF文件")
-    manage_window.geometry("400x350")
+    manage_window.geometry("400x500")
 
     pdf_list = tk.Listbox(manage_window, selectmode=tk.SINGLE)
     pdf_list.pack(pady=20, padx=10, fill=tk.BOTH, expand=True)
@@ -178,7 +241,11 @@ def manage_pdfs():
     refresh_button = ctk.CTkButton(manage_window, text="刷新列表", command=refresh_pdf_list)
     refresh_button.pack(pady=10, padx=10)
 
-    delete_button = ctk.CTkButton(manage_window, text="删除选中的PDF及文件夹", command=lambda: delete_pdf_and_folder(pdf_list.get(tk.ANCHOR)))
+    # 添加状态标签
+    status_label = ctk.CTkLabel(manage_window, text="")
+    status_label.pack(pady=10, padx=10)
+
+    delete_button = ctk.CTkButton(manage_window, text="删除选中的PDF及文件夹", command=lambda: delete_pdf_and_folder(pdf_list.get(tk.ANCHOR), status_label))
     delete_button.pack(pady=10, padx=10)
 
     refresh_pdf_list()
@@ -214,8 +281,8 @@ QQ群号，B站主页也有，可以直接复制，我懒得做功能了。
     bilibili_label.bind("<Button-1>", lambda event: webbrowser.open_new("https://space.bilibili.com/397706571"))
 
 # 自定义设置：
-config = "config.yml"  # 修改为相对目录
-load_config = jmcomic.JmOption.from_file(config)
+# 下载目录已硬编码为程序当前目录，无需加载配置文件
+# load_config = jmcomic.JmOption.from_file(config)
 
 # 创建窗口
 root = ctk.CTk()
