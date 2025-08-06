@@ -1,0 +1,4 @@
+jmcomic
+pyyaml
+Pillow
+customtkinter
