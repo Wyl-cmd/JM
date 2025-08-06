@@ -254,7 +254,6 @@ def show_help():
     help_text = """
 by：K_空想科技
 注意！
-PDF管理如果不进行选择，点击清除则默认删除所有PDF！
 单击选择，双击打开。
 软件有概率出现下载未成功的情况，此时请关闭软件重新运行。
 另外请不要在下载过程中多次点击下载，会导致线程中断（我没做多线程下载，以后会做吧，鸽了）
@@ -262,8 +261,6 @@ PDF管理如果不进行选择，点击清除则默认删除所有PDF！
 QQ群：1154539255（有啥问题直接进去问！）
 QQ群号，B站主页也有，可以直接复制，我懒得做功能了。
 冷知识：以下链接直接点击即可跳转。
-感谢以下项目：
-第二个是我的B站主页，求关注，感谢关注喵~！
 """
     help_window = ctk.CTkToplevel(root)
     help_window.title("帮助")
@@ -272,11 +269,7 @@ QQ群号，B站主页也有，可以直接复制，我懒得做功能了。
     help_label = ctk.CTkLabel(help_window, text=help_text, justify=tk.LEFT)
     help_label.pack(pady=20, padx=10)
 
-    github_label = ctk.CTkLabel(help_window, text="https://github.com/salikx/image2pdf", justify=tk.LEFT, cursor="hand2")
-    github_label.pack(pady=(0, 10), padx=10)
-    github_label.bind("<Button-1>", lambda event: webbrowser.open_new("https://github.com/salikx/image2pdf"))
-
-    bilibili_label = ctk.CTkLabel(help_window, text="https://space.bilibili.com/397706571", justify=tk.LEFT, cursor="hand2")
+    bilibili_label = ctk.CTkLabel(help_window, text="我的B站主页", justify=tk.LEFT, cursor="hand2")
     bilibili_label.pack(pady=(0, 10), padx=10)
     bilibili_label.bind("<Button-1>", lambda event: webbrowser.open_new("https://space.bilibili.com/397706571"))
 
